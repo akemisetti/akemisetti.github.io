@@ -1,0 +1,186 @@
+---
+title: "Assignment 5"
+author: "Anil Kemisetti"
+date: "9/28/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+For this assignment you will perform EDA (Exploratory Data Analysis) and create a linear
+regression model of data that has been simulated to relate baby IQ to family
+characteristics. The dataset may be found in file baby_IQ_data200.csv in the assignment 5
+folder (also linked from Assign 5 on Canvas). Variables are described below.
+
+####Parent Characteristics 
+
+  - MA: Maternal Age at time of pregnancy (years) -- maternal_age
+  - PSS: Social Status of family -- social_status
+  - BE: Breadwinners Post-high school Education -- education
+  - CC: cigarette consumption mother per day -- noof_cigarette
+  - NP: No. of pregnancies of mother, including this baby -- noof_pregnancies
+   
+####Infant Characteristics
+   - GA: Estimated gestational age of baby at birth (weeks) -- gestational_age
+   - BW: Birth weight (g) -- birth_weight
+   - BL: Birth height (cm) -- birth_height
+   - IQ: IQ score of the baby -- IQ
+  
+```{r message=FALSE, warning=FALSE}
+setwd("~/Documents/usfca/631")
+library(ggplot2)
+library(dplyr)
+library(kableExtra)
+library(data.table)
+library(psych)
+library(tidyr)
+library(car)
+library(purrr)
+library(ggpubr)
+library(gridExtra)
+library(grid)
+library(corrplot)
+library(GGally)
+library(ggfortify)
+```
+Reading the datafile.
+```{r}
+babies <- read.csv("baby_IQ_data200.csv")
+head(babies) %>% 
+  kable(escape = F, align = "c") %>%
+  kable_styling(c("striped","condensed"), full_width = T)
+```
+Renaming the columnNames
+```{r}
+setnames(babies, c("MA","PSS","BE","CC","NP","GA","BW","BL","IQ"),c("maternal_age","social_status","education","noof_cigarette","noof_pregnancies",
+                                                                    "gestational_age","birth_weight","birth_height","IQ"))
+```
+
+```{r}
+describe(babies)  %>% 
+  kable(escape = F, align = "c") %>%
+  kable_styling(c("striped"), full_width = T)
+```
+function to display plots in a grid
+```{r}
+grid9x9 <- function(plist,cols, rows, n ){
+  layout <- matrix(seq(1,n),ncol = cols, nrow=rows)
+  grid.newpage()
+  pushViewport(viewport(layout = grid.layout(rows,cols)))
+  for(i in 1:9){
+    idx <- as.data.frame(which(layout ==i, arr.ind = TRUE))
+    print(plist[[i]], vp = viewport(layout.pos.row = idx$row,layout.pos.col = idx$col))
+  }
+}
+```
+####Univariate Plot
+Following are the various density plots and their mean for all of the variables. 
+
+```{r fig.height=10, fig.width=10, message=FALSE}
+p <- list()
+coln <- colnames(babies)
+for (i in 1:ncol(babies)) {
+  p[[i]] <- ggdensity(babies, x=coln[i], fill="#0073C2FF", rug = TRUE, add="mean")
+}
+grid9x9(p,3,3,9)
+```
+####BiVariate Plots for all the variables
+```{r}
+cor(babies)  %>% 
+  kable(escape = F, align = "c") %>%
+  kable_styling(c("striped"), full_width = T)
+```
+
+```{r fig.height=15, fig.width=15}
+corrplot(cor(babies), method="pie", title="Correlation plot", mar=c(0,0,5,0))
+```
+Above plot shows that IQ is correlated postitively with maternal_age and social_status and negatively correlated with noof_cigarattes.
+
+Let us do a pair plot and understand this further. 
+```{r fig.height=15, fig.width=15, message=FALSE}
+ggpairs(babies, diag = list(continious = "barDiag")) + ggtitle("Bi Variate plot of all the variables")
+```
+When it comes to Maternal Age and IQ. Maternal age is beteen 25 and 35 and it showed a postive correlation. Similar is the case with social status. 
+Majority of values fall inside the median. In the case of Cigaratte Somking. Extreme smoking caused low IQ. 
+
+Let us now explore multiple regression with IQ and all other variables as main effect
+
+```{r fig.height=15, fig.width=15}
+fit <- lm(IQ ~ maternal_age+social_status+noof_cigarette+education+noof_pregnancies+gestational_age+birth_weight+birth_height, data = babies)
+autoplot(fit)
+```
+Above plots show a parabola pattern for fitted and residual which is an indication of nonlinear fit. 
+Getting the summary details
+```{r}
+summary(fit)
+```
+Above sumarry showed that maternal age, noof_cigaratte, education as important variables. 
+Using Step function
+
+```{r}
+step(lm(IQ ~ maternal_age+social_status+noof_cigarette+education+noof_pregnancies+gestational_age+birth_weight+birth_height, data = babies),direction="both")
+```
+Step function has figured out that four variable maternal_age, social_status, noof_cigarette and education are important. 
+let us fit a model and see the fitted vs residaul plot for these
+
+```{r fig.height=15, fig.width=15}
+fit <- lm(IQ ~ maternal_age+social_status+noof_cigarette+education, data = babies)
+autoplot(fit)
+```
+```{r}
+summary(fit)
+```
+In this case social status is not significant. May be it just had interaction effect. 
+Fitting main effects and 2nd order interactions of these 3 variables and including ineraction for social status
+```{r fig.height=15, fig.width=15}
+fit1 <- lm(IQ ~ (maternal_age+noof_cigarette+education)^2 + I(maternal_age^2)+I(noof_cigarette^2)+I(education^2), data=babies)
+autoplot(fit1)
+```
+
+```{r}
+summary(fit1)
+```
+All the main effects and 2nd order interactions are significant. Got a good adjusted R squared. A nice fit. Now let us explore the ineractions of social staus
+
+```{r fig.height=15, fig.width=15}
+fit1 <- lm(IQ ~ (maternal_age+noof_cigarette+education)^2 + I(maternal_age^2)+I(noof_cigarette^2)+I(education^2)+ education:social_status, data=babies)
+autoplot(fit1)
+```
+```{r}
+summary(fit1)
+```
+A slight improvement in the Adjusted r value but this model showed that education and social status interaction is important. 
+Let us explore its interaction with maternal age staus. 
+
+```{r fig.height=15, fig.width=15}
+fit1 <- lm(IQ ~ (maternal_age+noof_cigarette+education)^2 + I(maternal_age^2)+I(noof_cigarette^2)+I(education^2)+ maternal_age:social_status, data=babies)
+autoplot(fit1)
+```
+```{r}
+summary(fit1)
+```
+This interaction is also important
+Let us include all of three main variables with social status
+
+```{r fig.height=15, fig.width=15}
+fit1 <- lm(IQ ~ (maternal_age+noof_cigarette+education)^2 + I(maternal_age^2)+I(noof_cigarette^2)+I(education^2)+ maternal_age:social_status+education:social_status+noof_cigarette:social_status, data=babies)
+autoplot(fit1)
+```
+```{r}
+summary(fit1)
+```
+When all of them are included it only selected noof_cigarette:social_status. So the winning model would be
+the following
+
+```{r fig.height=15, fig.width=15}
+fit1 <- lm(IQ ~ (maternal_age+noof_cigarette+education)^2 + I(maternal_age^2)+I(noof_cigarette^2)+I(education^2)+ noof_cigarette:social_status, data=babies)
+autoplot(fit1)
+```
+```{r}
+summary(fit1)
+```
+## Winning Model
+ IQ ~ (maternal_age + noof_cigarette + education)^2 +  I(maternal_age^2) + I(noof_cigarette^2) + I(education^2) + noof_cigarette:social_status
+ with an ajusted R-Squared value of 0.9389 
+ 
