@@ -1,0 +1,480 @@
+---
+title: "Assignment 6"
+author: "Anil Kemisetti"
+date: "10/5/2018"
+output: 
+  html_document :
+     toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Assignment Description
+For this assignment you will investigate the data in file weather.data.csv in the assignment
+6 folder (also linked from Assign 6 on Canvas). You will fit a liner model to the raw data
+to model the relationship between high daily temperature and month. Then you will create
+a copy of the raw data and perform data preparation on it. You will then fit a linear model
+to model the relationship between high daily temperature and month in the new dataset and
+compare the two models.
+In the plots you produce, be sure to include plot title and axis labels (including units where
+appropriate).
+
+#Initial Setup 
+##Loading the Libraries
+```{r message=FALSE, warning=FALSE}
+setwd("~/Documents/usfca/631")
+library(ggplot2)
+library(dplyr)
+library(kableExtra)
+library(data.table)
+library(psych)
+library(tidyr)
+library(car)
+library(purrr)
+library(ggpubr)
+library(gridExtra)
+library(grid)
+library(corrplot)
+library(GGally)
+library(ggfortify)
+library(cowplot)
+library(ggstatsplot)
+library(nortest)
+library(ggfortify)
+library(ggcorrplot)
+library(broom)
+library(jtools)
+library(RColorBrewer)
+library(paletteer)
+```
+#Exploratory Data Analysis
+
+***
+>###Assignment Section
+>1. Read the file weather
+
+***
+
+## Reading the data and looking at it for the first time.
+### Numerical EDA
+
+
+```{r fig.width=15, fig.height=5}
+temper <- read.csv("weather.data.csv")
+p1 <- ggtexttable(summary(temper))
+p2 <- ggtexttable(describe(temper))
+
+annotate_figure(plot_grid(p1,p2, nrow=2) ,
+               top = text_grob("Summarizing the temper dataframe \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 1"
+)
+
+```
+
+***
+
+>### Assignment Section
+>2. Perform EDA: Examine the environment and execute a summary of the dataset.
+>3. Perform EDA: Create plots of the distribution of each variable.
+>4. Perform EDA: Execute the command plot(temper) to plot the pairwise relations of
+>the variables in temper. Note that you do not need to add title and axis labels to the
+>plot produced by this command.
+>5. In order to produce a linear model of upper temperature as a function of month,
+>some data preparation will be required. Consider whether the data types of the
+>variables appropriately represent temperature, rainfall, month and year. Write a
+>brief comment identifying any variable that is typed incorrectly. Do not modify
+>dataset temper.
+>#### Analysis
+>Initial look at the data shows that month and year are integers. They are discrete values. They should be factor variables
+>Please find below the EDA for the above set of questions
+
+***
+
+### Visual EDA
+#### Univatiate Analysis
+Visualing the continious variables
+
+```{r fig.height=15, fig.width=15, message=FALSE, warning=FALSE, paged.print=FALSE}
+p1 <- ggplot(temper, aes(x=upper))+ geom_histogram( colour="black", aes(y=..density.., fill=..count..))+
+      geom_density(linetype = "dashed", color="yellow", size=2)+
+      scale_fill_gradient("Count", low="lightblue", high="darkblue") +stat_function(fun=dnorm,color="red", size=1,
+                         args=list(mean=mean(temper$upper), 
+                                  sd=sd(temper$upper))) +ggtitle("Histogram and Density plot for count and density \n of Upper Temperature") + theme_gray()
+
+p2 <- ggplot(temper, aes(x=lower))+ geom_histogram( colour="black", aes(y=..density.., fill=..count..))+
+      geom_density(linetype = "dashed", color="yellow", size=2)+
+      scale_fill_gradient("Count", low="lightblue", high="darkblue") +stat_function(fun=dnorm,color="red", size=1,
+                         args=list(mean=mean(temper$lower), 
+                                  sd=sd(temper$lower))) +ggtitle("Histogram and Density plot for count and density \nof Lower Temperature") + theme_gray()
+
+p3 <- ggplot(temper, aes(x=rain))+ geom_histogram( colour="black", aes(y=..density.., fill=..count..))+
+      geom_density(linetype = "dashed", color="yellow", size=2)+
+      scale_fill_gradient("Count", low="lightblue", high="darkblue") +stat_function(fun=dnorm,color="red", size=1,
+                         args=list(mean=mean(temper$rain), 
+                                  sd=sd(temper$rain)))  +ggtitle("Histogram and Density plot for count and density \nof Rain") + theme_gray()
+
+p4 <-gghistostats(
+     data = temper,   
+     x = upper,                                  
+     title = "Distribution of Upper Temperature",   
+    fill.gradient = TRUE,                     
+    messages = FALSE,
+    ggstatsplot.layer = FALSE
+) +theme_gray()
+
+p5 <-gghistostats(
+     data = temper,   
+     x = upper,                                  
+     title = "Distribution of Lower Temperature",   
+    fill.gradient = TRUE,                     
+    messages = FALSE,
+    ggstatsplot.layer = FALSE
+) +theme_gray()
+
+p6 <-gghistostats(
+     data = temper,   
+     x = upper,                                  
+     title = "Distribution of Rain",   
+    fill.gradient = TRUE,                     
+    messages = FALSE,
+    ggstatsplot.layer = FALSE
+) +theme_gray()
+
+p7 <- ggplot(temper, aes(sample = temper$upper))+stat_qq() + stat_qq_line(color = "red") +ggtitle("Testing the  normality for Upper Temperature") +theme_gray()
+p8 <- ggplot(temper, aes(sample = temper$lower))+stat_qq() + stat_qq_line(color="red") +ggtitle("Testing the  normality for Lower Temperature") +theme_gray()
+p9 <- ggplot(temper, aes(sample = temper$rain))+stat_qq() + stat_qq_line(color ="red") +ggtitle("Testing the  normality for Rain") +theme_gray()
+
+annotate_figure(plot_grid(p1,p2,p3,p4,p5,p6,p7,p8,p9, ncol=3) ,
+               top = text_grob("Visualing Univatiate plot for Continious Variable \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 2"
+)
+```
+Normality test for the continious Variables
+
+```{r fig.width=8, fig.height=3}
+ad_test_df <- function(df, alpha= 0.05) {
+  l <- lapply(df, ad.test)
+  s <- do.call("c", lapply(l, "[[", 1))
+  p <- do.call("c", lapply(l, "[[", 2))
+  sig <- ifelse(p > alpha, "Passed Normality", "Failed Normality")
+
+  return(list(statistic= s,
+              p.value= p,
+              significance= sig
+              ))
+}
+t <- ad_test_df(temper)
+p1 <- ggtexttable(do.call(rbind,t))
+annotate_figure(plot_grid(p1, ncol=1) ,
+               top = text_grob("Normality test for the continious variables \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 3")
+```
+Numerical Description of the discrete variables
+
+```{r fig.height=4, fig.width=12}
+message_function <- function(){'Variable is not discrete ignoring'}
+cat_data <- function(x){
+  frequency_count <- table(x)
+  proportion <- round(frequency_count/sum(frequency_count),3)
+  percent <- round(proportion*100,3)
+  return (rbind(frequency_count,proportion,percent))
+}
+t <- lapply(temper, function(x) {
+    if (is.integer(x)){ return(cat_data(x))}
+    else{ return(message_function())}
+})
+p1<- ggtexttable(t$month)
+p2 <- ggtexttable(t$yr)
+
+annotate_figure(plot_grid(p1,p2, ncol=1) ,
+               top = text_grob("Proportions for the discrete variables \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 4"
+)
+```
+Visualizing the Discrete variables
+```{r fig.height=15, fig.width=10}
+p1 <- ggplot(temper, aes(month)) + geom_bar() + ggtitle("Frequency counts for month") +theme_gray()
+p2 <- ggplot(temper, aes(yr)) + geom_bar() + ggtitle("Frequency counts for years")+theme_gray()
+p3 <- ggpiestats( data = temper,
+  main = month,
+  title = "Composition of months",
+  messages = FALSE
+)+theme_gray()
+p4 <- ggpiestats( data = temper,
+  main = yr,
+  title = "Composition of year",
+  messages = FALSE
+)+theme_gray()
+p5 <- ggplot(temper, aes(x=month)) + geom_bar(aes(y=(..count..)/sum(..count..)))+ scale_y_continuous(labels=scales::percent) +ylab("Percentages") + ggtitle("Percentages for month") +theme_gray()
+p6 <- ggplot(temper, aes(x=yr)) + geom_bar(aes(y=(..count..)/sum(..count..)))+ scale_y_continuous(labels=scales::percent) +ylab("Percentages") + ggtitle("Percentages for month")+theme_gray()
+
+annotate_figure(plot_grid(p1,p2,p3,p4,p5,p6, ncol=2) ,
+               top = text_grob("Proportions for the discrete variables \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 5"
+)
+```
+
+#### Bivariarte Analysis
+Correlation Analysis of the bi-variate analysis.
+Correlation Matrix of all the variables
+
+```{r fig.height=3, fig.width=10}
+p1 <- ggtexttable(cor(temper)) + ggtitle("Correlation matrix") 
+
+annotate_figure(plot_grid(p1, ncol=1) ,
+               top = text_grob("Correlation matrix of all numeric variables \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 6"
+)
+
+```
+```{r fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+p1 <- ggcorrplot(cor(temper), hc.order = TRUE,  type = "lower",
+       outline.col = "white",
+       method = "circle",
+       lab = TRUE,
+       ggtheme = ggplot2::theme_gray,
+       colors = c("#6D9EC1", "white", "#E46726")) + ggtitle("Correlalogram for months")
+capture.output(p2 <- ggcorrmat(
+  data =temper,
+  corr.method = "robust",                   
+  sig.level = 0.001,                         
+  p.adjust.method = "holm",                  
+  cor.vars = c(upper,lower,rain,month,yr),    
+  matrix.type = "upper",                     
+  colors = c("#6D9EC1", "white", "#E46726"), 
+  title = "Correlalogram for months",
+  messages = FALSE
+) +theme_gray(),file = 'NUL')
+
+annotate_figure(plot_grid(p1,p2, nrow = 1) ,
+               top = text_grob("Correlalogram of all numeric variables \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 7"
+) 
+
+```
+Plotting the regression for every pair of the variables. 
+
+```{r fig.height=30, fig.width=30, message=FALSE, warning=FALSE}
+regression_fn <- function(data, mapping, method, ...){
+      ggplot(data = data, mapping = mapping) + 
+      geom_point() + 
+      geom_smooth(method=method, ...)
+    }
+p1 <- ggpairs(temper, diag = list(continious = "barDiag"), lower= list(continuous = wrap(regression_fn, method="lm") ), upper= list(continuous = wrap(regression_fn, method = "loess") )) + ggtitle("Bi Variate plot of all the variables") + theme_gray()
+f <- ggmatrix_gtable(p1,nrow=1)
+capture.output(annotate_figure(f ,
+               top = text_grob("Regressiion plot of all pairs of variables \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 8"
+),file = 'NUL')
+```
+***
+
+>### Assignment Section
+>6. Use the lm command to produce a linear regression model of upper temperature as a
+>function of month for temper. Store your model in a variable named fit0.
+>7. Execute a summary of fit0 and briefly describe its goodness of fit. Be sure to
+>include what quantity in the summary leads to your statement.
+>8. Execute plot(fit0,1). Note that a parabolic shape of the plot Residuals vs Fitted
+>often, but not always, is indicative of 2nd order effects.
+>9. Write out the equation of the fitted line for model fit0.
+>10. Write out what the regression line of fit0 models: what is the effect on response
+>variable upper of a unit increase in predictor variable month?
+>11. Create a scatter plot of upper temperature as a function of month in dataset
+>temper. Color the points by month.
+>12. On your plot add an abline of the fitted regression line whose equation you wrote
+>above. You may use the command abline(lm(fit0)) to accomplish this.
+
+>Please find the answers below
+
+***
+
+#Regression Analysis
+Performing regression analysis of the model fitting the upper as a function of month and creating the summary of the model.
+
+```{r fig.height=7, fig.width=17}
+fit0 <- lm(upper~month, data = temper)
+t <- tidy(fit0, conf.int = TRUE)
+p1 <- ggtexttable(t)
+p2 <- ggtexttable(head(augment(fit0)))
+p3 <- ggtexttable(glance(fit0))
+
+annotate_figure(plot_grid(p1,p2,p3, nrow=3) ,
+               top = text_grob("Summarizing the fit of the model upper~month \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 9"
+)
+
+```
+
+Plotting the model details
+```{r fig.height=5, fig.width=15}
+p1 <- ggplot(temper, aes(x=month,y = upper, color=month))+ geom_point() + geom_abline(slope = t$estimate[2], intercept = t$estimate[1],color="red",size=1)  + ggtitle("Plotting Regression Line") + theme_gray()
+p2 <- ggplot(t, aes(estimate, term, color = term)) + geom_point() + geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) +geom_vline(xintercept = 0)  + ggtitle("Plotting Regression coefficients") + theme_gray()
+p3 <- ggcoefstats(x = fit0) + ggtitle("Plotting Regression coefficients") + theme_gray()
+
+annotate_figure(plot_grid(p1,p2,p3, nrow=1) ,
+               top = text_grob("Plotting the regression model \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 10"
+)
+```
+Plotting the results of Regression
+
+```{r fig.height=10, fig.width=15}
+p <- autoplot(fit0, ncol =4) + theme_gray()
+p1 <- plot_summs(fit0, scale = TRUE, plot.distributions = TRUE, inner_ci_level = .9) + theme_gray() +ggtitle("Plot coefficient uncertainty as normal distributions")
+
+annotate_figure(plot_grid(p[[1]],p[[2]],p[[3]],p[[4]],p1,ncol = 3),
+               top = text_grob("Plotting the regression results \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 11"
+)
+```
+```{r}
+cat('Equation for fit0 is upper = ',t$estimate[2],'* month + ',t$estimate[1] )
+```
+***
+
+### Assignment Section
+>13. Create a new dataset temper2 that is a copy of temper. Then modify temper2 so
+>as to correct the data types of variable(s) that are of inappropriate type. This will
+>prepare the data for fitting a linear model of upper temperature as a function of
+>month. If you are converting a variable to a categorical, create an unordered factor
+>variable, as the resulting linear model will be more interpretable. However, be sure
+>to specify the output order of the levels in a logical order using “levels=”
+>14. Create a plot to visualize upper temperature by month in dataset temper2. Use a
+>plot type that is appropriate for the types of these 2 variables in temper2. Briefly
+>compare this plot to the one you created above to visualize upper temperature as a
+>function of month in dataset temper2.
+>15. Use the lm command to produce a linear regression model of upper temperature as a
+>function of month for temper2. Store your model in a variable named fit1.
+>16. Execute plot(fit1,1). Compare this plot to the Residuals vs Fitted plot of fit0.
+>17. Execute a summary of fit1 and briefly describe its goodness of fit in comparison
+>with fit0.
+>18. Write out three equations of the fitted line for model fit1: one for the month of
+>January, one for June, and one for December.
+
+***
+
+# Modifying the dataset
+Initial observation was made that month and year are not discrete numbers but are factor variables. Converting them into factor variables.
+```{r}
+temper2 <- temper
+lab = c("Jan", "Feb", "Mar","Apr", "May", "Jun","July", "Aug", "Sep","Oct", "Nov", "Dec")
+temper2$month <- factor(temper$month, labels=lab)
+temper2$yr <- factor(temper$yr)
+```
+
+Describing temper2 numerically
+```{r fig.width=15, fig.height=5}
+p1 <- ggtexttable(summary(temper2))
+p2 <- ggtexttable(describe(temper2))
+
+annotate_figure(plot_grid(p1,p2, nrow=2) ,
+               top = text_grob("Summarizing the temper dataframe \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 11"
+)
+```
+
+Plotting the regression for every pair of the variables. 
+
+```{r fig.height=30, fig.width=30, message=FALSE, warning=FALSE}
+
+p1 <- ggpairs(temper2, diag = list(continious = "barDiag"), lower= list(continuous = wrap(regression_fn, method="lm") ), upper= list(continuous = wrap(regression_fn, method = "loess") ), cardinality_threshold = 19) + 
+  ggtitle("Bi Variate plot of all the variables") + theme_gray()
+f <- ggmatrix_gtable(p1,nrow=1)
+capture.output(annotate_figure(f ,
+               top = text_grob("Regressiion plot of all pairs of variables \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 12"
+),file = 'NUL')
+```
+
+#Regression Analysis
+Performing regression analysis of the model fitting the upper as a function of month and creating the summary of the model.
+
+```{r fig.height=10, fig.width=17}
+fit1 <- lm(upper~month, data = temper2)
+t1 <- tidy(fit1, conf.int = TRUE)
+p1 <- ggtexttable(t1)
+p2 <- ggtexttable(head(augment(fit0)))
+p3 <- ggtexttable(glance(fit0))
+
+annotate_figure(plot_grid(p1,p2,p3, nrow=3) ,
+               top = text_grob("Summarizing the fit of the model upper~month \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 13"
+)
+
+```
+
+
+Plotting the model details
+```{r fig.height=5, fig.width=15}
+color <- grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)]
+slp <- c(0,t1$estimate[2:12])
+slp
+mon <- c(1,2,3,4,5,6,7,8,9,10,11,12)
+mon
+ccc <- sample(color, 12)
+incpt=rep(t1$estimate[1],12)
+slp*mon
+incpt_calc <- (slp*mon)+incpt
+color_dt <- data.frame(month=lab,ccc=ccc,slp=slp,incpt=incpt,mon=mon,incpt_calc=incpt_calc)
+color_dt
+temper3 <- merge(temper2,color_dt,by="month")
+p1 <- ggplot(temper3, aes(x=month,y = upper,color=month))+ geom_point() + geom_abline( mapping = aes(slope = 0, intercept = incpt_calc,color=month),size=1)  + ggtitle("Plotting Regression Line") + theme_gray()
+p2 <- ggplot(t1, aes(estimate, term, color = term)) + geom_point() + geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) +geom_vline(xintercept = 0)  + ggtitle("Plotting Regression coefficients") + theme_gray() 
+
+annotate_figure(plot_grid(p1,p2, nrow=1) ,
+               top = text_grob("Plotting the regression model \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 14"
+)
+```
+Plotting the results of Regression
+
+```{r fig.height=10, fig.width=15}
+p <- autoplot(fit1, ncol =4) + theme_gray()
+p1 <- plot_summs(fit1, scale = TRUE, plot.distributions = TRUE, inner_ci_level = .9) + theme_gray() +ggtitle("Plot coefficient uncertainty as normal distributions")
+p2 <- plot_summs(fit0, fit1, scale = TRUE) +ggtitle("Comparing the fit of the two models")+ theme_gray()
+
+annotate_figure(plot_grid(p[[1]],p[[2]],p[[3]],p[[4]],p1,p2,ncol = 3),
+               top = text_grob("Plotting the regression results \n", color="darkred", face = "bold", size = 14),
+               bottom = text_grob("Data source: \n weather.data data set", color = "blue",
+                                  hjust = 1, x = 1, face = "italic", size = 10),
+               fig.lab = "Figure 11"
+)
+```
+creating equations for all the months
+```{r}
+call_func <- function(x) cat('Equation for month ',x[1],' is ',x[4],'+',x[3],'*',x[5],"\n")
+apply(color_dt,1,call_func)
+```
+### r-Squared of the first model was 0.0307 and it improved in the second model and the adjusted R-squared value is 0.0305. Even though the r-squared has not improved there is not explained variance let in the Residual Vs Fitted Plot. 
+
