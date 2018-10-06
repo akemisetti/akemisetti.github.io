@@ -420,8 +420,8 @@ Performing regression analysis of the model fitting the upper as a function of m
 fit1 <- lm(upper~month, data = temper2)
 t1 <- tidy(fit1, conf.int = TRUE)
 p1 <- ggtexttable(t1)
-p2 <- ggtexttable(head(augment(fit0)))
-p3 <- ggtexttable(glance(fit0))
+p2 <- ggtexttable(head(augment(fit1)))
+p3 <- ggtexttable(glance(fit1))
 
 annotate_figure(plot_grid(p1,p2,p3, nrow=3) ,
                top = text_grob("Summarizing the fit of the model upper~month \n", color="darkred", face = "bold", size = 14),
@@ -437,13 +437,10 @@ Plotting the model details
 ```{r fig.height=5, fig.width=15}
 color <- grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)]
 slp <- c(0,t1$estimate[2:12])
-slp
 mon <- c(1,2,3,4,5,6,7,8,9,10,11,12)
-mon
 ccc <- sample(color, 12)
 incpt=rep(t1$estimate[1],12)
-slp*mon
-incpt_calc <- (slp*mon)+incpt
+incpt_calc <- slp+incpt
 color_dt <- data.frame(month=lab,ccc=ccc,slp=slp,incpt=incpt,mon=mon,incpt_calc=incpt_calc)
 color_dt
 temper3 <- merge(temper2,color_dt,by="month")
@@ -473,8 +470,9 @@ annotate_figure(plot_grid(p[[1]],p[[2]],p[[3]],p[[4]],p1,p2,ncol = 3),
 ```
 creating equations for all the months
 ```{r}
-call_func <- function(x) cat('Equation for month ',x[1],' is ',x[4],'+',x[3],'*',x[5],"\n")
+call_func <- function(x) cat('Equation for month ',x[1],' is ',x[4],'+',x[3],"\n")
 apply(color_dt,1,call_func)
 ```
-### r-Squared of the first model was 0.0307 and it improved in the second model and the adjusted R-squared value is 0.0305. Even though the r-squared has not improved there is not explained variance let in the Residual Vs Fitted Plot. 
+### About the final model.
+r-Squared of the first model was 0.0307 and it improved in the second model and the adjusted R-squared value is 0.708. It has also improved the explained variance shown in the Residual Vs Fitted Plot. 
 
